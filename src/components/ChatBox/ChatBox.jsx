@@ -7,10 +7,20 @@ import { db } from '../../config/firebase'
 import { toast } from 'react-toastify'
 import upload from '../../lib/upload'
 
+// Import Web Speech API's SpeechRecognition
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
 const ChatBox = () => {
 
   const {userData, messagesId, chatUser, messages, setMessages,chatVisible,setChatVisible} = useContext(AppContext);
   const [input, setInput] = useState("");
+  const [isListening, setIsListening] = useState(false);
+
+  // Initialize speech recognition
+  const recognition = new SpeechRecognition();
+  recognition.continuous = false; 
+  recognition.interimResults = false; 
+  recognition.lang = 'en-US'; 
 
   const sendMessage = async () => {
     try {
@@ -106,9 +116,27 @@ toast.error(error.message);
     else{
 return hour+ ":" +minute +" AM";
     }
-
-
   }
+
+  const startListening = () => {
+    setIsListening(true);
+    recognition.start();
+  }
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    setInput(prevInput => prevInput + transcript); 
+    setIsListening(false);
+  };
+
+  recognition.onerror = (event) => {
+    toast.error("Speech recognition error: " + event.error);
+    setIsListening(false);
+  };
+
+  recognition.onend = () => {
+    setIsListening(false);
+  };
 
   useEffect(() => {
     if (messagesId) {
@@ -137,6 +165,7 @@ return hour+ ":" +minute +" AM";
         
         <div className="chat-msg">
           {messages.map((msg,index)=>(
+
    <div key={index} className={msg.sId===userData.id ? "s-msg" : "r-msg"}>
     {msg["image"]
     ?<img className='msg-img' src={msg.image} alt=""/>
@@ -157,6 +186,10 @@ return hour+ ":" +minute +" AM";
       <div className="chat-input">
         <input onChange={(e) => setInput(e.target.value)} value={input} type="text" placeholder='Send a Message' />
         <input onChange={sendImage} type="file" id='image' accept='image/png, image/jpeg' hidden />
+         <label htmlFor="mic">
+           {/* On click, start listening */}
+           <img src={assets.mic} alt="Mic" onClick={startListening} />
+         </label>
         <label htmlFor="image">
           <img src={assets.gallery_icon} alt=" " />
         </label>
